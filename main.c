@@ -18,6 +18,9 @@
 #include <string.h>
 #include <stdlib.h>
 
+#define MEM_SIZE 2
+#define LINE_LENGTH 32
+
 void serialChr(char chr) {
     while(!TXIF);
     TXREG = chr;
@@ -63,7 +66,8 @@ char *prompt(char msg[]) {
                 buf[len++] = chr;
                 serialChr(chr);
             }
-            if(chr == 0x7) {
+            // @todo multiple backspaces not working yet somehow
+            if(chr == 0x7 && len > 0) {
                 buf[--len] = 0;
             }            
         }
@@ -74,7 +78,14 @@ _Bool streq(char *a, char *b) {
     return stricmp(a,b)== 0;
 }
 
+
+char mem[MEM_SIZE][LINE_LENGTH+1] = {
+    "The quick brown fox",
+    "jumped up",
+};
+
 void main(void) {
+
     // Set led pin as output
     TRISB3 = 0;
     
@@ -101,6 +112,24 @@ void main(void) {
             else if(streq("off",mode)) RB3 = 0;
             else if(streq("toggle",mode)) RB3 = !RB3;
             else writeLine("Unknown parameter");
+        }
+        
+        // Memory string buffer
+        else if(streq("read", cmd)) {
+            char *istr = strtok(NULL, " ");
+            char i = (char)atoi(istr);
+            if(i > 0 && i <= MEM_SIZE) {
+                writeLine(mem[i-1]);
+            }
+        }
+        
+        else if (streq("write", cmd)) {
+            char *istr = strtok(NULL, " ");
+            char i = (char)atoi(istr);
+            if(i > 0 && i <= MEM_SIZE) {
+                char *data = strtok(NULL, NULL);
+                strcpy(mem[i-1], data);
+            }
         }
         
         // Command unknown
