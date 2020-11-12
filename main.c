@@ -12,11 +12,18 @@
 // #pragma config statements should precede project file includes.
 // Use project enums instead of #define for ON and OFF.
 
-#define _XTAL_FREQ 10000000 // 1 instruction cycle = 400ns
+#define _XTAL_FREQ 10000000 // 1 instruction cycle = 1us
 
 #include <xc.h>
 
-
+void serialChr(char chr) {
+    while(!TXIF);
+    TXREG = chr;
+}
+void serialStr(char str[]) {
+    for(int i=0; str[i]!=0; i++)
+        serialChr(str[i]);
+}
 void main(void) {
     // Set led pin as output
     TRISB0 = 0;
@@ -25,19 +32,28 @@ void main(void) {
     TRISB1 = 1;
     TRISB2 = 1;
     SPBRG = 10;
-    TXSTA = 0b00101100;
-    RCSTA = 0b10000000;
-    
-
-    unsigned char c = 0x20;
-    
+    TXSTA = 0b00100100;
+    RCSTA = 0b10010000;
      
-   while (1) {
-        RB0 = 1;
-        __delay_ms(100);
-        RB0 = 0;
-        __delay_ms(100);
-        TXREG = c;
-        if(++c == 0x7f) c = 0x20;
+    serialStr("\r\n");
+    serialStr("PicShell> ");
+    while (1) {
+
+        if(RCIF) {
+            if(OERR) {
+                __delay_ms(100);
+                TXREG = 'E';
+                CREN = 0;
+                CREN = 1;
+            }
+            else if(FERR) {
+                RCREG;
+                serialStr("FERR");
+            }
+            serialChr(RCREG);
+        }
+        
+
     }
 }
+
