@@ -12,77 +12,21 @@
 // #pragma config statements should precede project file includes.
 // Use project enums instead of #define for ON and OFF.
 
-#define _XTAL_FREQ 10000000 // 1 instruction cycle = 1us
 
 #include <xc.h>
 #include <string.h>
 #include <stdlib.h>
 
-#define MEM_SIZE 2
-#define LINE_LENGTH 32
-
-void serialChr(char chr) {
-    while(!TXIF);
-    TXREG = chr;
-}
-void serialStr(char str[]) {
-    for(int i=0; str[i]!=0; i++)
-        serialChr(str[i]);
-}
-void writeLine(char str[]) {
-    serialStr(str);
-    serialStr("\r\n");
-}
-
-
-char *prompt(char msg[]) {
-    serialStr(msg);
-    static char buf[41];
-    memset(buf,0,sizeof buf);
-    char len = 0;
-    
-    while(1) {       
-        if(RCIF) {
-            if(OERR) {
-                __delay_ms(100);
-                TXREG = 'E';
-                CREN = 0;
-                CREN = 1;
-            }
-            else if(FERR) {
-                RCREG;
-                serialStr("FERR");
-            }
-            char chr = RCREG;
-            
-            if(chr == '\r') {
-                serialStr("\r\n");
-                return buf;
-            }
-            if(chr >= 0x20 || chr < 0x7f) {
-                if(strlen(buf) >= 40) {
-                    continue;
-                }
-                buf[len++] = chr;
-                serialChr(chr);
-            }
-            // @todo multiple backspaces not working yet somehow
-            if(chr == 0x7 && len > 0) {
-                buf[--len] = 0;
-            }            
-        }
-    }
-}
+#include "prompt.h"
+#include "serial.h"
+#include "config.h"
 
 _Bool streq(char *a, char *b) {
     return stricmp(a,b)== 0;
 }
 
 
-char mem[MEM_SIZE][LINE_LENGTH+1] = {
-    "The quick brown fox",
-    "jumped up",
-};
+char mem[MEM_SIZE][LINE_LENGTH+1];
 
 void main(void) {
 
@@ -95,6 +39,8 @@ void main(void) {
     SPBRG = 10;
     TXSTA = 0b00100100;
     RCSTA = 0b10010000;
+    
+    memset(mem, 0, MEM_SIZE * (LINE_LENGTH+1));
     
     serialStr("\r\n");
     while (1) {
@@ -114,7 +60,7 @@ void main(void) {
             else writeLine("Unknown parameter");
         }
         
-        // Memory string buffer
+        // Read from memory
         else if(streq("read", cmd)) {
             char *istr = strtok(NULL, " ");
             char i = (char)atoi(istr);
@@ -123,6 +69,7 @@ void main(void) {
             }
         }
         
+        // Write to memory
         else if (streq("write", cmd)) {
             char *istr = strtok(NULL, " ");
             char i = (char)atoi(istr);
