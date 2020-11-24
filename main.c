@@ -16,6 +16,7 @@
 #include <xc.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "prompt.h"
 #include "serial.h"
@@ -39,6 +40,19 @@ void main(void) {
     SPBRG = 10;
     TXSTA = 0b00100100;
     RCSTA = 0b10010000;
+    
+    
+    // Configure ADC
+   
+    // Vref(max) = VDD * ((1/4) + (15/32)) = VDD * 23/32;
+    // Vref(min) = VDD * ((1/4) + (0/32)) = VDD / 4;
+    VRCON = 0x88; // Enable Vref & set to half range = VDD * (.25 + (8/32)) = 2.5V;
+            
+    // Configure comparator
+    CMCON = 0x02; // Comparator 1 op RA0,Comparator 2 op RA1
+    TRISA0 = 1;
+    TRISA1 = 1; // 400ns response time
+    
     
     memset(mem, 0, MEM_SIZE * (LINE_LENGTH+1));
     
@@ -79,6 +93,31 @@ void main(void) {
             }
         }
         
+        // Read adc
+        else if (streq("analog", cmd)) {
+            char buf[16];
+            char res = 0;
+            int i=0;
+            VRCON = 0x88;
+            __delay_ms(100);
+            res += C1OUT ? 0 : 8;
+            
+            VRCON = 0x80 + res;
+            __delay_ms(100);
+            res += C1OUT ? 0 : 4;
+            
+            VRCON = 0x80 + res;
+            __delay_ms(100);
+            res += C1OUT ? 0 : 2;
+            
+            VRCON = 0x80 + res;
+            __delay_ms(100);
+            res += C1OUT ? 0 : 1;
+            unsigned int f = (5*(8+res)*10)/32;
+            sprintf(buf, "Value is %u.%u V",f/10,f%10);
+            writeLine(buf);
+        }
+ 
         // Command unknown
         else {
             writeLine("Unknown command");
